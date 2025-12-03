@@ -1,0 +1,48 @@
+name: deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Apigee CLI
+        run: |
+          curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | sh -
+          export PATH=$PATH:$HOME/.apigeecli/bin
+
+      - name: Save GCP SA Key to file
+        run: |
+          echo '${{ secrets.GCP_SA_KEY }}' > service-account.json
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy API Proxy to Apigee
+        run: |
+          export PATH=$PATH:$HOME/.apigeecli/bin
+          echo "Deploying proxy..."
+
+          # Check folder structure
+          ls -R ./
+
+          # Deploy the apiproxy folder
+          apigeecli apis create bundle \
+            --name book-my-show-proxy \
+            --proxy-folder ./book-my-show-proxy/apiproxy \
+            --org ${{ secrets.APIGEE_ORG }} \
+            --env ${{ secrets.APIGEE_ENV }} \
+            --safedeploy \
+            --account service-account.json
+
+      - name: Deployment Completed
+        run: echo "Deployment finished successfully!"
