@@ -1,6 +1,6 @@
 <ProxyEndpoint name="default">
   <HTTPProxyConnection>
-    <BasePath>verify-api-key</BasePath>
+    <BasePath>/verify-api-key</BasePath>
   </HTTPProxyConnection>
   <RouteRule name="backend">
     <TargetEndpoint>backend</TargetEndpoint>
