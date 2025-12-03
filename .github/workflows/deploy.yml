@@ -1,9 +1,10 @@
-name: deploy
+name: Deploy Apigee Proxy
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -30,19 +31,21 @@ jobs:
       - name: Deploy API Proxy to Apigee
         run: |
           export PATH=$PATH:$HOME/.apigeecli/bin
-          echo "Deploying proxy..."
 
-          # Check folder structure
-          ls -R ./
+          echo "Deploying Apigee Proxy..."
 
-          # Deploy the apiproxy folder
+          # Debug listing
+          ls -R ./src/main/apigee/apiproxies/
+
+          # Deploy the proxy
           apigeecli apis create bundle \
-            --name book-my-show-proxy \
-            --proxy-folder ./book-my-show-proxy/apiproxy \
+            --name Imobile \
+            --proxy-folder ./src/main/apigee/apiproxies/Imobile/apiproxy \
             --org ${{ secrets.APIGEE_ORG }} \
             --env ${{ secrets.APIGEE_ENV }} \
             --safedeploy \
+            --wait \
             --account service-account.json
 
       - name: Deployment Completed
-        run: echo "Deployment finished successfully!"
+        run: echo "Apigee deployment completed successfully!"
