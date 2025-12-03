@@ -34,16 +34,16 @@ jobs:
 
           echo "Deploying Apigee Proxy..."
 
-          # Debug listing
+          # Debug listing (optional)
           ls -R ./src/main/apigee/apiproxies/
 
-          # Deploy the proxy
           apigeecli apis create bundle \
             --name Imobile \
             --proxy-folder ./src/main/apigee/apiproxies/Imobile/apiproxy \
             --org ${{ secrets.APIGEE_ORG }} \
             --env ${{ secrets.APIGEE_ENV }} \
             --safedeploy \
+            --ovr \
             --wait \
             --account service-account.json
 
