@@ -1,8 +1,7 @@
-<AssignMessage name="AssignResponse">
+<AssignMessage name="ReplaceResponse">
   <Set>
-    <Payload contentType="application/json">
-      { "message": "Hello, {name}" }
-    </Payload>
+    <Payload>Hello from HelloWorldDemo</Payload>
   </Set>
   <AssignTo type="response"/>
 </AssignMessage>
+
