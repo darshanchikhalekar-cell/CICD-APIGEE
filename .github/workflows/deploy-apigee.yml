@@ -1,4 +1,4 @@
-name: Master Deploy Apigee Proxies
+name: Deploy Apigee Proxies
 
 on:
   push:
@@ -11,16 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # -------------------------
-    # 1. Checkout the repository
-    # -------------------------
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # -----------------------------------------
-    # 2. Install Google Cloud SDK + Apigee tools
-    # -----------------------------------------
-    - name: Install Google Cloud SDK
+    - name: Set up Google Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
@@ -30,44 +24,38 @@ jobs:
     - name: Install apigeecli
       run: |
         curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | bash
-        sudo mv apigeecli /usr/local/bin/
+        echo "$HOME/.apigeecli/bin" >> $GITHUB_PATH
+        $HOME/.apigeecli/bin/apigeecli version
 
-    # ------------------------------------
-    # 3. Loop through all proxies and deploy
-    # ------------------------------------
-    - name: Deploy all proxies in apiproxies folder
+    - name: Deploy Apigee Proxies
       run: |
-        echo "Deploying proxies to Apigee environment: ${{ secrets.APIGEE_ENV }}"
+        TOKEN=$(gcloud auth print-access-token)
 
         for proxy in apiproxies/*; do
           if [ -d "$proxy/apiproxy" ]; then
             PROXY_NAME=$(basename "$proxy")
-            echo "----------------------------------------"
-            echo " Deploying Proxy: $PROXY_NAME"
-            echo "----------------------------------------"
+            echo "Deploying $PROXY_NAME ..."
 
             apigeecli apis create bundle \
               --name "$PROXY_NAME" \
               --org "${{ secrets.APIGEE_ORG }}" \
               --file "$proxy/apiproxy" \
-              --token "$(gcloud auth print-access-token)"
+              --token "$TOKEN"
 
             REV=$(apigeecli apis list \
               --org "${{ secrets.APIGEE_ORG }}" \
-              --token "$(gcloud auth print-access-token)" \
+              --token "$TOKEN" \
               --name "$PROXY_NAME" \
               --json | jq -r '.[0].revision | max')
-
-            echo "Deploying revision $REV..."
 
             apigeecli apis deploy \
               --name "$PROXY_NAME" \
               --org "${{ secrets.APIGEE_ORG }}" \
               --env "${{ secrets.APIGEE_ENV }}" \
               --rev "$REV" \
-              --token "$(gcloud auth print-access-token)" \
-              --override
+              --override \
+              --token "$TOKEN"
+
+            echo "Successfully deployed $PROXY_NAME revision $REV"
           fi
         done
-
-      shell: bash
