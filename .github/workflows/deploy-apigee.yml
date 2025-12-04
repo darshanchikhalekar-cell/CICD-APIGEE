@@ -9,51 +9,30 @@ jobs:
 
     steps:
 
-    # --------------------------
-    # Checkout Repo
-    # --------------------------
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # --------------------------
-    # Install Google Cloud SDK
-    # --------------------------
     - name: Setup Google Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-    # --------------------------
-    # Authenticate with Service Account
-    # --------------------------
     - name: Authenticate Service Account
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    # --------------------------
-    # Install apigeecli + jq
-    # FIXED VERSION ⭐⭐
-    # --------------------------
     - name: Install apigeecli and jq
       run: |
         curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | bash
-        echo "Listing apigeecli installation directory:"
-        ls -R $HOME/.apigeecli
-
-        echo "Copying apigeecli binary into /usr/local/bin..."
         sudo cp $HOME/.apigeecli/bin/apigeecli /usr/local/bin/apigeecli
         sudo chmod +x /usr/local/bin/apigeecli
 
-        echo "Installing jq..."
+        sudo apt-get update
         sudo apt-get install -y jq
 
-        echo "Verify apigeecli version:"
         apigeecli -v
 
-    # --------------------------
-    # Deploy all proxies in apiproxies/
-    # --------------------------
     - name: Deploy all proxies
       run: |
         TOKEN=$(gcloud auth print-access-token)
@@ -61,7 +40,9 @@ jobs:
 
         for dir in apiproxies/*; do
           if [ -d "$dir/apiproxy" ]; then
+
             PROXY_NAME=$(basename "$dir")
+
             echo "----------------------------------------"
             echo "DEPLOYING PROXY: $PROXY_NAME"
             echo "----------------------------------------"
@@ -72,7 +53,7 @@ jobs:
               --org "${{ secrets.APIGEE_ORG }}" \
               --env "${{ secrets.APIGEE_ENV }}" \
               --token "$TOKEN" \
-              --override \
+              --ovr \
               --wait
 
             echo "----------------------------------------"
