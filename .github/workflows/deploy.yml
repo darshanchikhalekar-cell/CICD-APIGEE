@@ -1,51 +1,61 @@
-name: Deploy Apigee Proxy
+name: Deploy Apigee Proxies
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
+      - master
 
 jobs:
-  deploy:
+  deploy-proxies:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Install Apigee CLI
-        run: |
-          curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | sh -
-          export PATH=$PATH:$HOME/.apigeecli/bin
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
 
-      - name: Save GCP SA Key to file
-        run: |
-          echo '${{ secrets.GCP_SA_KEY }}' > service-account.json
+    - name: Install apigeecli
+      run: |
+        curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | bash
+        echo "$HOME/.apigeecli/bin" >> $GITHUB_PATH
+        echo "apigeecli installed successfully"
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+    - name: Deploy Apigee Proxies
+      run: |
+        TOKEN=$(gcloud auth print-access-token)
 
-      - name: Deploy API Proxy to Apigee
-        run: |
-          export PATH=$PATH:$HOME/.apigeecli/bin
+        for proxy in apiproxies/*; do
+          if [ -d "$proxy/apiproxy" ]; then
+            PROXY_NAME=$(basename "$proxy")
+            echo "Deploying $PROXY_NAME..."
 
-          echo "Deploying Apigee Proxy..."
+            apigeecli apis create bundle \
+              --name "$PROXY_NAME" \
+              --org "${{ secrets.APIGEE_ORG }}" \
+              --file "$proxy/apiproxy" \
+              --token "$TOKEN"
 
-          # Debug listing (optional)
-          ls -R ./src/main/apigee/apiproxies/
+            REV=$(apigeecli apis list \
+              --org "${{ secrets.APIGEE_ORG }}" \
+              --token "$TOKEN" \
+              --name "$PROXY_NAME" \
+              --json | jq -r '.[0].revision | max')
 
-          apigeecli apis create bundle \
-            --name Imobile \
-            --proxy-folder ./src/main/apigee/apiproxies/Imobile/apiproxy \
-            --org ${{ secrets.APIGEE_ORG }} \
-            --env ${{ secrets.APIGEE_ENV }} \
-            --safedeploy \
-            --ovr \
-            --wait \
-            --account service-account.json
+            apigeecli apis deploy \
+              --name "$PROXY_NAME" \
+              --org "${{ secrets.APIGEE_ORG }}" \
+              --env "${{ secrets.APIGEE_ENV }}" \
+              --rev "$REV" \
+              --override \
+              --token "$TOKEN"
 
-      - name: Deployment Completed
-        run: echo "Apigee deployment completed successfully!"
+            echo "Successfully deployed $PROXY_NAME revision $REV"
+          fi
+        done
