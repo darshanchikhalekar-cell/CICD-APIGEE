@@ -1,7 +1,7 @@
 name: Deploy Apigee Proxies
 
 on:
-  workflow_dispatch:   # Run manually
+  workflow_dispatch:   # Run manually only
 
 jobs:
   deploy:
@@ -32,21 +32,21 @@ jobs:
         gcloud config set project ${{ secrets.GCP_PROJECT_ID }}
 
     # --------------------------------------------------
-    # 4. Install apigeecli and jq  (FIXED VERSION)
+    # 4. Install apigeecli and jq  (PERMANENT PATH FIX)
     # --------------------------------------------------
     - name: Install apigeecli and jq
       run: |
         curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | bash
-        export PATH="$PATH:$HOME/.apigeecli/bin"
+        echo "$HOME/.apigeecli/bin" >> $GITHUB_PATH
         sudo apt-get update && sudo apt-get install -y jq
 
     # --------------------------------------------------
-    # 5. Deploy ALL proxies found in apiproxies/
+    # 5. Deploy ALL proxies
     # --------------------------------------------------
     - name: Deploy all proxies
       run: |
         TOKEN=$(gcloud auth print-access-token)
-        
+
         echo "Deploying proxies to Apigee environment: ${{ secrets.APIGEE_ENV }}"
 
         for dir in apiproxies/*; do
@@ -71,6 +71,7 @@ jobs:
     # --------------------------------------------------
     # 6. Cleanup authentication
     # --------------------------------------------------
-    - name: Post Authenticate to Google Cloud
+    - name: Post Authenticate Cleanup
       if: always()
       run: gcloud auth revoke --all
+``
