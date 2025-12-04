@@ -1,8 +1,5 @@
 name: Deploy Apigee Proxies
 
-# -----------------------------------------
-# MANUAL TRIGGER — Run workflow button
-# -----------------------------------------
 on:
   workflow_dispatch:
 
@@ -11,39 +8,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # -----------------------------------------
-    # 1. Checkout code
-    # -----------------------------------------
-    - uses: actions/checkout@v3
+    # ------------------------------
+    # Checkout the repository
+    # ------------------------------
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-    # -----------------------------------------
-    # 2. Authenticate to Google Cloud (New Method)
-    # -----------------------------------------
+    # ------------------------------
+    # Authenticate using SA Key
+    # ------------------------------
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v1
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    # -----------------------------------------
-    # 3. Install Google Cloud SDK
-    # -----------------------------------------
-    - name: Install gcloud
+    # ------------------------------
+    # Install gcloud SDK
+    # ------------------------------
+    - name: Set up Google Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-    # -----------------------------------------
-    # 4. Install apigeecli + jq
-    # -----------------------------------------
+    # ------------------------------
+    # Install Apigee CLI + jq
+    # ------------------------------
     - name: Install apigeecli and jq
       run: |
         curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | bash
         echo "$HOME/.apigeecli/bin" >> $GITHUB_PATH
-        sudo apt-get update && sudo apt-get install -y jq
+        sudo apt-get update
+        sudo apt-get install -y jq
 
-    # -----------------------------------------
-    # 5. Deploy ALL proxies inside apiproxies/
-    # -----------------------------------------
+    # ------------------------------
+    # Deploy ALL proxies
+    # ------------------------------
     - name: Deploy all proxies
       run: |
         TOKEN=$(gcloud auth print-access-token)
@@ -53,6 +52,6 @@ jobs:
           if [ -d "$dir/apiproxy" ]; then
 
             PROXY_NAME=$(basename "$dir")
+
             echo "----------------------------------------"
-            echo "DEPLOYING PROXY: $PROXY_NAME"
-            echo "----------------------------------------"
+            echo "DEPLOYING PROXY: $P
