@@ -1,4 +1,4 @@
-name: Deploy Apigee Proxies
+name: Master Deploy Apigee Proxies
 
 on:
   push:
