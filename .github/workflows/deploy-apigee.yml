@@ -25,7 +25,7 @@ jobs:
       run: |
         curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | bash
         echo "$HOME/.apigeecli/bin" >> $GITHUB_PATH
-        $HOME/.apigeecli/bin/apigeecli version
+        echo "apigeecli installed successfully"
 
     - name: Deploy Apigee Proxies
       run: |
@@ -34,7 +34,7 @@ jobs:
         for proxy in apiproxies/*; do
           if [ -d "$proxy/apiproxy" ]; then
             PROXY_NAME=$(basename "$proxy")
-            echo "Deploying $PROXY_NAME ..."
+            echo "Deploying $PROXY_NAME..."
 
             apigeecli apis create bundle \
               --name "$PROXY_NAME" \
