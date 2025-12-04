@@ -1,10 +1,52 @@
-name: Test Workflow
+name: Deploy Apigee Proxies
 
 on:
   workflow_dispatch:
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - run: echo "Workflow is working"
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Install Google Cloud SDK
+    - name: Install Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    # Authenticate service account
+    - name: Authenticate Service Account
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    # Install apigeecli
+    - name: Install apigeecli and jq
+      run: |
+        curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | bash
+        chmod +x apigeecli
+        sudo mv apigeecli /usr/local/bin/
+        sudo apt-get install -y jq
+
+    # Deploy each proxy
+    - name: Deploy all proxies
+      run: |
+        TOKEN=$(gcloud auth print-access-token)
+
+        echo "Deploying proxies to Apigee environment: ${{ secrets.APIGEE_ENV }}"
+
+        for PROXY in $(ls apiproxies); do
+          echo "----------------------------------------"
+          echo "DEPLOYING PROXY: $PROXY"
+          echo "----------------------------------------"
+
+          apigeecli apis create bundle \
+            -o "${{ secrets.APIGEE_ORG }}" \
+            -e "${{ secrets.APIGEE_ENV }}" \
+            -n "$PROXY" \
+            -p "apiproxies/$PROXY" \
+            -t "$TOKEN"
+        done
