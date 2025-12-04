@@ -1,41 +1,57 @@
 name: Deploy Apigee Proxies
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:   # Run manually only
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    # -----------------------------
+    # 1. Checkout repository
+    # -----------------------------
+    - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v1
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-
+    # -----------------------------
+    # 2. Install Google Cloud SDK
+    # -----------------------------
     - name: Setup Google Cloud SDK
-      uses: google-github-actions/setup-gcloud@v1
+      uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+    # -----------------------------
+    # 3. Authenticate with Service Account
+    # -----------------------------
+    - name: Authenticate Service Account
+      run: |
+        echo '${{ secrets.GCP_SA_KEY }}' > key.json
+        gcloud auth activate-service-account --key-file=key.json
+        gcloud config set project ${{ secrets.GCP_PROJECT_ID }}
+
+    # -----------------------------
+    # 4. Install apigeecli + jq
+    # -----------------------------
     - name: Install apigeecli and jq
       run: |
         curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | bash
-        echo "$HOME/.apigeecli/bin" >> $GITHUB_PATH
-        sudo apt-get update
-        sudo apt-get install -y jq
+        sudo mv apigeecli_* /usr/local/bin/apigeecli
+        sudo chmod +x /usr/local/bin/apigeecli
+        sudo apt-get update && sudo apt-get install -y jq
 
+    # -----------------------------
+    # 5. Deploy all proxies
+    # -----------------------------
     - name: Deploy all proxies
-      shell: bash
       run: |
         TOKEN=$(gcloud auth print-access-token)
+
         echo "Deploying proxies to Apigee environment: ${{ secrets.APIGEE_ENV }}"
 
         for dir in apiproxies/*; do
-          if [ -d "$dir/apiproxy" ]; then
+          if [ -d "$dir" ]; then
 
             PROXY_NAME=$(basename "$dir")
             echo "----------------------------------------"
@@ -43,26 +59,12 @@ jobs:
             echo "----------------------------------------"
 
             apigeecli apis create bundle \
-              --name "$PROXY_NAME" \
-              --proxy-folder "$dir/apiproxy" \
-              --org "${{ secrets.APIGEE_ORG }}" \
-              --token "$TOKEN"
-
-            REV=$(apigeecli apis list \
-              --name "$PROXY_NAME" \
-              --org "${{ secrets.APIGEE_ORG }}" \
-              --json \
-              --token "$TOKEN" \
-              | jq -r '.[0].revision | max')
-
-            apigeecli apis deploy \
-              --name "$PROXY_NAME" \
-              --rev "$REV" \
               --org "${{ secrets.APIGEE_ORG }}" \
               --env "${{ secrets.APIGEE_ENV }}" \
-              --override \
-              --token "$TOKEN"
+              --name "$PROXY_NAME" \
+              --folder "$dir/apiproxy" \
+              --token "$TOKEN" \
+              --override
 
-            echo "✔ Successfully deployed $PROXY_NAME (rev $REV)"
           fi
         done
